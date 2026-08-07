@@ -1,6 +1,6 @@
 # LoL 日程調整 bot
 
-5 人サーバー向けの Discord 日程調整 bot。
+5 人サーバー向けの Discord 日程調整 bot(Rust / serenity 製)。
 
 ## 動き
 
@@ -18,6 +18,13 @@
 | `/schedule` | 候補日をその場で投稿(初回やテストに) |
 | `/next` | 次の確定した開催日を表示 |
 
+## メモリ対策
+
+- Discord のキャッシュ機能を切り、gateway intent も最小限(guilds + reactions)にした
+- tokio はシングルスレッド(`current_thread`)runtime
+- release プロファイルで `opt-level = "z"` / LTO / strip 済み(バイナリ約 5MB)
+- 状態は `state.json` に都度読み書きするだけで、常駐データはほぼ持たない
+
 ## セットアップ
 
 ### 1. bot を作る
@@ -28,22 +35,23 @@
    permission に **View Channels / Send Messages / Add Reactions / Read Message History /
    Mention Everyone** を選び、生成された URL からサーバーに招待する
 
-### 2. 動かす
+### 2. ビルドして動かす
 
 ```bash
 cd schedule_bot
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
 
 cp .env.example .env
 # .env に DISCORD_TOKEN とチャンネル ID を書く
 
-python bot.py
+cargo build --release
+./target/release/schedule-bot
 ```
 
-起動後に `/schedule` を打てばすぐ候補日が投稿されるので、動作確認はそれが早いです。
+起動後に Discord で `/schedule` を打てばすぐ候補日が投稿されるので、動作確認はそれが早いです。
 
 ## 設定(環境変数)
+
+`.env` に書くか、環境変数として渡す。
 
 | 変数 | デフォルト | 説明 |
 | --- | --- | --- |
@@ -61,6 +69,19 @@ python bot.py
 - 候補日メッセージと確定状況は `state.json` に保存されるので、bot を再起動しても
   過去に投稿した候補日への ⭕ は引き続き検知される
 - 一度確定を通知した日は、その後 ⭕ が外されても取り消しはしない(手動で相談してください)
-- 常時起動が必要なので、Raspberry Pi・VPS・無料枠のホスティングなどで
-  `python bot.py` を動かしっぱなしにするのがおすすめ
-  (systemd を使うなら `Restart=always` を付けると安心)
+- 常時起動が必要。省メモリなので Raspberry Pi や最小構成の VPS で十分動く。
+  systemd で動かすなら:
+
+```ini
+[Unit]
+Description=LoL schedule bot
+After=network-online.target
+
+[Service]
+WorkingDirectory=/path/to/schedule_bot
+ExecStart=/path/to/schedule_bot/target/release/schedule-bot
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```

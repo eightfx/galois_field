@@ -1,0 +1,31 @@
+[package]
+name = "schedule-bot"
+version = "0.1.0"
+edition = "2021"
+
+# 親クレート(galois_field)とは独立した単体クレート
+[workspace]
+
+[dependencies]
+serenity = { version = "0.12", default-features = false, features = [
+    "builder",
+    "client",
+    "gateway",
+    "http",
+    "model",
+    "rustls_backend",
+] }
+tokio = { version = "1", features = ["macros", "rt", "time"] }
+chrono = { version = "0.4", features = ["serde"] }
+chrono-tz = "0.10"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+dotenvy = "0.15"
+
+# バイナリサイズ・メモリを絞る
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
